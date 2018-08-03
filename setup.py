@@ -13,14 +13,14 @@ except ImportError:
     setup
 
 setup(
-    name="cham",
+    name="charm",
     version='0.1',
     author="Phill Cargile",
     author_email="pcargile@cfa.harvard.edu",
-    packages=["cham"],
+    packages=["charm"],
     url="",
     #license="LICENSE",
     description="Cluster Heirarchical Astrometric Modeling",
     long_description=open("README.md").read() + "\n\n",
-    #install_requires=["numpy", "scipy >= 0.9"],
+    #install_requires=["numpy", "scipy"],
 )
