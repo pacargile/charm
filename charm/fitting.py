@@ -25,7 +25,10 @@ class charmfit(object):
 		self.verbose = self.kwargs.get('verbose',True)
 
 		# initialize the model class
-		self.clustermodel = clustermodel(self.inarr,1000)
+		self.clustermodel = clustermodel(
+			self.inarr,
+			self.kwargs.get('Nsamples',1000.0),
+			modeltype=self.kwargs.get('ModelType','gaussian'))
 
 		# initialize the prior class
 		priordict = self.kwargs.get('priordict',{})

@@ -7,12 +7,13 @@ def gauss(args):
 
 class clustermodel(object):
 	"""docstring for clustermodel"""
-	def __init__(self, inarr, Nsamp):
+	def __init__(self, inarr, Nsamp, modeltype='gaussian'):
 		super(clustermodel, self).__init__()
 		self.inarr = inarr
 		self.Nstars = len(self.inarr)
 		self.starid = range(self.Nstars)
 		self.Nsamp = Nsamp
+		self.modeltype = modeltype
 
 		# generate grid of samples for each star
 		self.starsamples = np.empty( (self.Nstars, self.Nsamp) )
@@ -26,19 +27,22 @@ class clustermodel(object):
 
 		# calculate like for all stars
 
-		# Gaussian model
-		like = (
-			(1.0/(np.sqrt(2.0*np.pi)*sigma_dist)) * 
-			np.exp( -0.5 * (((1000.0/self.starsamples)-dist)**2.0)*(sigma_dist**-2.0) )
-			)
-		"""
+		if self.modeltype == 'gaussian':
+			# Gaussian model
+			like = (
+				(1.0/(np.sqrt(2.0*np.pi)*sigma_dist)) * 
+				np.exp( -0.5 * (((1000.0/self.starsamples)-dist)**2.0)*(sigma_dist**-2.0) )
+				)
+		elif self.modeltype == 'cauchy':
 
-		# Cauchy model
-		like = (
-			(1.0/(np.pi*sigma_dist)) *
-			(sigma_dist**2.0)/( (((1000.0/self.starsamples)-dist)**2.0) + (sigma_dist**2.0) )
-			)
-		"""
+			# Cauchy model
+			like = (
+				(1.0/(np.pi*sigma_dist)) *
+				(sigma_dist**2.0)/( (((1000.0/self.starsamples)-dist)**2.0) + (sigma_dist**2.0) )
+				)
+		else:
+			print('Did not understand model type')
+			raise IOError
 
 		if np.min(like) <= np.finfo(np.float).eps:
 			return -np.inf
