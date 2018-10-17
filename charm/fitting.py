@@ -6,10 +6,10 @@ import numpy as np
 from .model import clustermodel
 from .priors import priors
 
-class chamfit(object):
-	"""docstring for chamfit"""
+class charmfit(object):
+	"""docstring for charmfit"""
 	def __init__(self,inarr,*args,**kwargs):
-		super(chamfit, self).__init__()
+		super(charmfit, self).__init__()
 		
 		# input array
 		self.inarr = inarr
@@ -79,7 +79,7 @@ class chamfit(object):
 
 	def likefn(self,args):
 		likeprob = self.clustermodel.likefn(args)
-		likeprob += -0.5*((args[1]/10.0)**2.0)
+		# likeprob += -0.5*(((args[1]-20.0)/5.0)**2.0)
 		return likeprob
 
 	def runsampler(self):

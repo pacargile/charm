@@ -39,7 +39,7 @@ class clustermodel(object):
 			(sigma_dist**2.0)/( (((1000.0/self.starsamples)-dist)**2.0) + (sigma_dist**2.0) )
 			)
 		"""
-		
+
 		if np.min(like) <= np.finfo(np.float).eps:
 			return -np.inf
 
