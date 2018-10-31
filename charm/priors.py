@@ -25,28 +25,58 @@ class priors(object):
 
 	def priortrans(self,upars):
 		# split upars
-		udist,usig_dist = upars
+		ux,usig_x,uy,usig_y,uz,usig_z = upars
 
 		outarr = []
 
-		if 'Dist' in self.priordict.keys():
-			dist = (
-				(max(self.priordict['Dist'])-min(self.priordict['Dist']))*udist + 
-				min(self.priordict['Dist'])
+		if 'X' in self.priordict.keys():
+			x = (
+				(max(self.priordict['X'])-min(self.priordict['X']))*ux + 
+				min(self.priordict['X'])
 				)
 		else:
-			dist = (1e+5 - 1e+2)*udist + 1e+2
+			x = (1e+5 - 1.0)*ux + 1.0
 
-		outarr.append(dist)
-
-		if 'sig_Dist' in self.priordict.keys():
-			sig_dist = (
-				(max(self.priordict['sig_Dist'])-min(self.priordict['sig_Dist']))*usig_dist + 
-				min(self.priordict['sig_Dist'])
+		if 'sig_X' in self.priordict.keys():
+			sig_x = (
+				(max(self.priordict['sig_X'])-min(self.priordict['sig_X']))*usig_x + 
+				min(self.priordict['sig_X'])
 				)
 		else:
-			sig_dist = (100.0 - 0.0)*usig_dist + 0.0
+			sig_x = (10000.0 - 0.0)*usig_x + 0.0
 
-		outarr.append(sig_dist)
+		if 'Y' in self.priordict.keys():
+			y = (
+				(max(self.priordict['Y'])-min(self.priordict['Y']))*uy + 
+				min(self.priordict['Y'])
+				)
+		else:
+			y = (1e+5 - 1.0)*uy + 1.0
 
-		return outarr
+		if 'sig_Y' in self.priordict.keys():
+			sig_y = (
+				(max(self.priordict['sig_Y'])-min(self.priordict['sig_Y']))*usig_y + 
+				min(self.priordict['sig_Y'])
+				)
+		else:
+			sig_y = (10000.0 - 0.0)*usig_y + 0.0
+
+		if 'Z' in self.priordict.keys():
+			z = (
+				(max(self.priordict['Z'])-min(self.priordict['Z']))*uz + 
+				min(self.priordict['Z'])
+				)
+		else:
+			z = (1e+5 - 1.0)*uz + 1.0
+
+		if 'sig_Z' in self.priordict.keys():
+			sig_z = (
+				(max(self.priordict['sig_Z'])-min(self.priordict['sig_Z']))*usig_z + 
+				min(self.priordict['sig_Z'])
+				)
+		else:
+			sig_z = (10000.0 - 0.0)*usig_z + 0.0
+
+		pars = [x,sig_x,y,sig_y,z,sig_z]
+
+		return pars

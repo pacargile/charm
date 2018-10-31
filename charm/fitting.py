@@ -19,16 +19,26 @@ class charmfit(object):
 		self.kwargs = kwargs
 
 		# set ndim
-		self.ndim = 2
+		self.ndim = 6
 
 		# set verbose
 		self.verbose = self.kwargs.get('verbose',True)
+
+		# make sure inarr has correct parameters
+		try:
+			assert('RA' in self.inarr.keys())
+			assert('Dec' in self.inarr.keys())
+			assert('Parallax' in self.inarr.keys())
+		except AssertionError:
+			print('-- Could not find RA/Dec/Parallax keys in input dictionary')
+			raise IOError
 
 		# initialize the model class
 		self.clustermodel = clustermodel(
 			self.inarr,
 			self.kwargs.get('Nsamples',1000.0),
 			modeltype=self.kwargs.get('ModelType','gaussian'))
+
 
 		# initialize the prior class
 		priordict = self.kwargs.get('priordict',{})
@@ -50,7 +60,7 @@ class charmfit(object):
 		self.outff = open(output_fn,'w')
 		self.outff.write('Iter ')
 
-		self.outff.write('Dist sig_Dist ')		
+		self.outff.write('X sig_X Y sig_Y Z sig_Z ')		
 
 		self.outff.write('log(lk) log(vol) log(wt) h nc log(z) delta(log(z))')
 		self.outff.write('\n')
