@@ -78,35 +78,49 @@ class clustermodel(object):
 	def likefn(self,arg):
 		# dist,sigma_dist = arg
 		x,sigma_x,y,sigma_y,z,sigma_z = arg
-		
+
 		# calculate like for all stars
 
 		if self.modeltype == 'gaussian':
 			# Gaussian model
 			like = (
 				((1.0/(np.sqrt(2.0*np.pi)*sigma_x)) * 
-				np.exp( -0.5 * ((self.starsamples[0,...] -x)**2.0)*(sigma_x**-2.0) )) + 
+					np.exp( -0.5 * ((self.starsamples[0,...] -x)**2.0)*(sigma_x**-2.0) )) + 
 
 				((1.0/(np.sqrt(2.0*np.pi)*sigma_y)) * 
-				np.exp( -0.5 * ((self.starsamples[1,...]-y)**2.0)*(sigma_y**-2.0) )) + 
+					np.exp( -0.5 * ((self.starsamples[1,...]-y)**2.0)*(sigma_y**-2.0) )) + 
 
 				((1.0/(np.sqrt(2.0*np.pi)*sigma_z)) * 
-				np.exp( -0.5 * ((self.starsamples[2,...]-z)**2.0)*(sigma_z**-2.0) )) 
+					np.exp( -0.5 * ((self.starsamples[2,...]-z)**2.0)*(sigma_z**-2.0) )) 
 				)
 
 		elif self.modeltype == 'cauchy':
-
 			# Cauchy model
 			like = (
 				((1.0/(np.pi*sigma_x)) *
-				(sigma_x**2.0)/( ((self.starsamples[0,...]-x)**2.0) + (sigma_x**2.0) )) + 
+					(sigma_x**2.0)/( ((self.starsamples[0,...]-x)**2.0) + (sigma_x**2.0) )) + 
 
 				((1.0/(np.pi*sigma_y)) *
-				(sigma_y**2.0)/( ((self.starsamples[1,...]-y)**2.0) + (sigma_y**2.0) )) + 
+					(sigma_y**2.0)/( ((self.starsamples[1,...]-y)**2.0) + (sigma_y**2.0) )) + 
 
 				((1.0/(np.pi*sigma_z)) *
-				(sigma_z**2.0)/( ((self.starsamples[2,...]-z)**2.0) + (sigma_z**2.0) )) 
+					(sigma_z**2.0)/( ((self.starsamples[2,...]-z)**2.0) + (sigma_z**2.0) )) 
 				)
+
+		elif self.modeltype == 'plummer':
+			# Plummer model
+
+			like = (
+				( (1.0/(sigma_x**3.0)) *
+					((1.0 + (((self.starsamples[0,...]-x)/sigma_x)**2.0))**(-5.0/2.0)) ) + 
+
+				( (1.0/(sigma_y**3.0)) *
+					((1.0 + (((self.starsamples[1,...]-y)/sigma_y)**2.0))**(-5.0/2.0)) ) + 
+
+				( (1.0/(sigma_z**3.0)) *
+					((1.0 + (((self.starsamples[2,...]-z)/sigma_z)**2.0))**(-5.0/2.0)) ) 
+				)
+
 		else:
 			print('Did not understand model type')
 			raise IOError
