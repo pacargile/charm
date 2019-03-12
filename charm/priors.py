@@ -35,7 +35,7 @@ class priors(object):
 				min(self.priordict['X'])
 				)
 		else:
-			x = (1e+5 - 1.0)*ux + 1.0
+			x = (1e+5 - -1e+5)*ux - 1e+5
 
 		if 'sig_X' in self.priordict.keys():
 			sig_x = (
@@ -51,7 +51,7 @@ class priors(object):
 				min(self.priordict['Y'])
 				)
 		else:
-			y = (1e+5 - 1.0)*uy + 1.0
+			y = (1e+5 - -1e+5)*uy - 1e+5
 
 		if 'sig_Y' in self.priordict.keys():
 			sig_y = (
@@ -67,7 +67,7 @@ class priors(object):
 				min(self.priordict['Z'])
 				)
 		else:
-			z = (1e+5 - 1.0)*uz + 1.0
+			z = (1e+5 - -1e+5)*uz - 1e+5
 
 		if 'sig_Z' in self.priordict.keys():
 			sig_z = (

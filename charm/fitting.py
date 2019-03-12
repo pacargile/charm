@@ -70,12 +70,13 @@ class charmfit(object):
 		samplerdict = self.kwargs.get('samplerdict',{})
 		self.npoints = samplerdict.get('npoints',200)
 		self.samplertype = samplerdict.get('samplertype','multi')
+		self.samplemethod = samplerdict.get('samplemethod','unif')
 		self.bootstrap = samplerdict.get('bootstrap',0)
 		self.update_interval = samplerdict.get('update_interval',0.6)
-		self.samplemethod = samplerdict.get('samplemethod','unif')
 		self.delta_logz_final = samplerdict.get('delta_logz_final',1.0)
 		self.flushnum = samplerdict.get('flushnum',100)
 		self.maxiter = samplerdict.get('maxiter',sys.maxsize)
+		self.walks = samplerdict.get('walks',25)
 
 		# initialize sampler object
 		self.dy_sampler = dynesty.NestedSampler(
@@ -88,6 +89,7 @@ class charmfit(object):
 			sample=self.samplemethod,
 			update_interval=self.update_interval,
 			bootstrap=self.bootstrap,
+			walks=self.walks,
 			)
 
 	def likefn(self,args):
