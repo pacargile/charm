@@ -1,133 +1,94 @@
 import numpy as np
-from scipy.stats import norm as gaussian
 from astropy import units as u
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord,Galactocentric,ICRS
+from .priors import determineprior,defaultprior
 
-def gauss(args):
-	x,mu,sigma = args
-	return 1/(sigma*np.sqrt(2*np.pi))*np.exp(-(x - mu)**2 / (2*sigma**2))
+import jax
+import jax.numpy as jnp
 
-class clustermodel(object):
-	"""docstring for clustermodel"""
-	def __init__(self, inarr, Nsamp, modeltype='gaussian'):
-		super(clustermodel, self).__init__()
-		self.inarr = inarr
-		self.Nstars = len(self.inarr)
-		self.starid = range(self.Nstars)
-		self.Nsamp = Nsamp
-		self.modeltype = modeltype
+import numpyro
+from numpyro import distributions as dist, infer
+from numpyro.distributions import MixtureGeneral
 
-		# generate grid of samples for each star
-		# self.starsamples = np.empty( (self.Nstars, self.Nsamp) )
-		# for idx in self.starid:
-		# 	self.starsamples[idx,:] = gaussian(
-		# 		loc=self.inarr['Parallax'][idx], 
-		# 		scale=self.inarr['Parallax_Error'][idx]).rvs(size=self.Nsamp)
+def cluster_model_3d(covar, par={}, priors={}, additionalinfo={}):
+    
+    starpos = jnp.vstack([par['RA'],par['Dec'],par['PM_RA'],par['PM_Dec'],par['dist'],par['RV']])
+    
+    # figure out how many stars
+    nstars = len(par['vrad'])
 
-		"""
-		self.starsamples = np.array([{} for _ in range(self.Nstars)])
-		for idx in self.starid:
-			RAdist = gaussian(
-				loc=self.inarr['RA'][idx], 
-				scale=self.inarr['RA_Error'][idx]).rvs(size=self.Nsamp)
-			Decdist = gaussian(
-				loc=self.inarr['Dec'][idx], 
-				scale=self.inarr['Dec_Error'][idx]).rvs(size=self.Nsamp)
-			Distdist = 1000.0/gaussian(
-				loc=self.inarr['Parallax'][idx], 
-				scale=self.inarr['Parallax_Error'][idx]).rvs(size=self.Nsamp)
+	# sample from priors
+    sample = {}
+    for pp in ['X','Y','Z','v_X','v_Y','v_Z']:
+        if pp in priors.keys():
+            sample[pp] = determineprior(pp,priors[pp])
+            sample['sigma_'+pp] = determineprior('sigma_'+pp,priors['sigma_'+pp])
+        else:
+            sample[pp] = defaultprior(pp)
+            sample['sigma_'+pp] = defaultprior('sigma_'+pp)
+        
+        if pp+'_bg' in priors.keys():
+            sample[pp+'_bg'] = determineprior(pp+'_bg',priors[pp+'_bg'])
+            sample['sigma_'+pp+'_bg'] = determineprior('sigma_'+pp+'_bg',priors['sigma_'+pp+'_bg'])
+        else:
+            sample[pp+'_bg'] = defaultprior(pp+'_bg')
+            sample['sigma_'+pp+'_bg'] = defaultprior('sigma_'+pp+'_bg')
+    
+    if 'Q' in priors.keys():
+        sample['Q'] = determineprior('Q',priors['Q'])
+    else:
+        sample['Q'] = defaultprior('Q')
+    
+    
+    with numpyro.plate("stars", nstars):
 
-			Xarr = []
-			Yarr = []
-			Zarr = []
-			for ra_i,dec_i,dist_i in zip(RAdist,Decdist,Distdist):
-				c = SkyCoord(ra=ra_i*u.deg,dec=dec_i*u.deg,distance=dist_i*u.pc)
-				Xarr.append(float(c.galactocentric.x.value))
-				Yarr.append(float(c.galactocentric.y.value))
-				Zarr.append(float(c.galactocentric.z.value))
+        # The background distance distribution 
+        pos_fg = [sample['X'],sample['Y'],sample['Z'],sample['v_X'],sample['v_Y'],sample['v_Z']]
+        covarFG = jnp.zeros([len(pos_fg),len(pos_fg)],dtype=float)
+        for ii,pp in enumerate(['X','Y','Z','v_X','v_Y','v_Z']):
+            covarFG[ii,ii] = np.sqrt(sample['sigma_'+pp])
+        
+        dist_fg = dist.MultivariateNormal(loc=pos_fg, covariance_matrix=covarFG)
 
-			self.starsamples[idx] = ({
-				'X':np.array(Xarr),
-				'Y':np.array(Yarr),
-				'Z':np.array(Zarr),
-				})
-		"""
-		self.starsamples = np.empty((3,self.Nstars,self.Nsamp))
-		for idx in range(self.Nstars):
-			RAdist = gaussian(
-				loc=self.inarr['RA'][idx], 
-				scale=self.inarr['RA_Error'][idx]).rvs(size=self.Nsamp)
-			Decdist = gaussian(
-				loc=self.inarr['Dec'][idx], 
-				scale=self.inarr['Dec_Error'][idx]).rvs(size=self.Nsamp)
-			Distdist = 1000.0/gaussian(
-				loc=self.inarr['Parallax'][idx], 
-				scale=self.inarr['Parallax_Error'][idx]).rvs(size=self.Nsamp)
+        # The foreground distribution 
+        pos_bg = [sample['X_bg'],sample['Y_bg'],sample['Z_bg'],sample['v_X_bg'],sample['v_Y_bg'],sample['v_Z_bg']]
+        covarBG = jnp.zeros([len(pos_bg),len(pos_bg)],dtype=float)
+        for ii,pp in enumerate(['X','Y','Z','v_X','v_Y','v_Z']):
+            covarBG[ii,ii] = np.sqrt(sample['sigma_'+pp+'_bg'])
+        
+        dist_bg = dist.MultivariateNormal(loc=pos_bg, covariance_matrix=covarBG)
+        
+        # Now we "mix" the foreground and background distributions using the
+        # "cluster membership fraction" parameter to specify the mixing weights.
+        mixture = MixtureGeneral(
+            dist.Categorical(probs=jnp.stack((sample['Q'], 1 - sample['Q']), axis=-1)),
+            [dist_fg, dist_bg],
+        )
+        r = numpyro.sample("r", mixture)
+        
+        # convert r to observed coordinates
+        sc = SkyCoord(
+            x=r[0]*u.kpc,
+            y=r[1]*u.kpc,
+            z=r[2]*u.kpc,
+            v_x=r[3]*u.km/u.s,
+            v_y=r[4]*u.km/u.s,
+            v_z=r[5]*u.km/u.s,
+            frame=Galactocentric)
+        sc.transform_to(ICRS)
+        ra        = float(sc.ra.value)
+        dec       = float(sc.dec.value)
+        pmra      = float(sc.pm_ra_cosdec.value)
+        pmdec     = float(sc.pm_dec.value)
+        distance  = float(sc.distance.value)
+        rv        = float(sc.radial_velocity.value)
+        
+        r_t = [ra,dec,pmra,pmdec,distance,rv]
+        
+        log_probs = mixture.component_log_probs(r)
+        numpyro.deterministic(
+            "p", log_probs - jax.nn.logsumexp(log_probs, axis=-1, keepdims=True)
+        )
 
-			for idd,dim in enumerate(['x','y','z']):
-				c = SkyCoord(ra=RAdist*u.deg,dec=Decdist*u.deg,distance=Distdist*u.pc)
-				if dim == 'x':
-					self.starsamples[idd,idx,:] = np.array(c.galactocentric.x.value)
-				elif dim == 'y':
-					self.starsamples[idd,idx,:] = np.array(c.galactocentric.y.value)
-				elif dim == 'z':
-					self.starsamples[idd,idx,:] = np.array(c.galactocentric.z.value)
-				else:
-					raise IOError
-
-	def likefn(self,arg):
-		# dist,sigma_dist = arg
-		x,sigma_x,y,sigma_y,z,sigma_z = arg
-
-		# calculate like for all stars
-
-		if self.modeltype == 'gaussian':
-			# Gaussian model
-			like = (
-				((1.0/(np.sqrt(2.0*np.pi)*sigma_x)) * 
-					np.exp( -0.5 * ((self.starsamples[0,...] -x)**2.0)*(sigma_x**-2.0) )) + 
-
-				((1.0/(np.sqrt(2.0*np.pi)*sigma_y)) * 
-					np.exp( -0.5 * ((self.starsamples[1,...]-y)**2.0)*(sigma_y**-2.0) )) + 
-
-				((1.0/(np.sqrt(2.0*np.pi)*sigma_z)) * 
-					np.exp( -0.5 * ((self.starsamples[2,...]-z)**2.0)*(sigma_z**-2.0) )) 
-				)
-
-		elif self.modeltype == 'cauchy':
-			# Cauchy model
-			like = (
-				((1.0/(np.pi*sigma_x)) *
-					(sigma_x**2.0)/( ((self.starsamples[0,...]-x)**2.0) + (sigma_x**2.0) )) + 
-
-				((1.0/(np.pi*sigma_y)) *
-					(sigma_y**2.0)/( ((self.starsamples[1,...]-y)**2.0) + (sigma_y**2.0) )) + 
-
-				((1.0/(np.pi*sigma_z)) *
-					(sigma_z**2.0)/( ((self.starsamples[2,...]-z)**2.0) + (sigma_z**2.0) )) 
-				)
-
-		elif self.modeltype == 'plummer':
-			# Plummer model
-
-			like = (
-				( (1.0/(sigma_x**3.0)) *
-					((1.0 + (((self.starsamples[0,...]-x)/sigma_x)**2.0))**(-5.0/2.0)) ) + 
-
-				( (1.0/(sigma_y**3.0)) *
-					((1.0 + (((self.starsamples[1,...]-y)/sigma_y)**2.0))**(-5.0/2.0)) ) + 
-
-				( (1.0/(sigma_z**3.0)) *
-					((1.0 + (((self.starsamples[2,...]-z)/sigma_z)**2.0))**(-5.0/2.0)) ) 
-				)
-
-		else:
-			print('Did not understand model type')
-			raise IOError
-
-		if np.min(like) <= np.finfo(np.float).eps:
-			return -np.inf
-
-		like = (like.T*self.inarr['Prob']).T
-		lnp = np.sum(np.log(like))
-		return lnp
+        # Finally, we convert the distance to parallax and add the zero-point offset.
+        numpyro.sample("starpos", dist.MultivariateNormal(loc=r_t, covariance_matrix=covar), obs=starpos)
